@@ -1,63 +1,67 @@
-// use std::io::Write;
-// use rand::{Rng, RngCore, SeedableRng};
-
-// fn main() -> std::io::Result<()> {
-//     // Constants
-//     let random_seed = 1234;
-//     let data_size = 100_000_000;
-//     let input_files_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/input_files/");
-//     let working_files_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/working_files/");
-
-//     // Generate random data
-//     let mut rng = rand::rngs::StdRng::seed_from_u64(random_seed);
-//     let mut rand_data = vec![0; data_size];
-//     rng.fill_bytes(&mut rand_data);
-
-//     std::fs::write(working_files_dir.join("rand_file.dat"), &rand_data)?;
-
-//     let rand_file_compressed = std::fs::File::create(working_files_dir.join("rand_file_compressed.dat"))?;
-//     let mut compressor = bzip2::write::BzEncoder::new(rand_file_compressed, bzip2::Compression::best());
-//     compressor.write_all(&rand_data)?;
-//     compressor.finish()?;
-
-//     println!("{:?}", rand_data.len());
-
-//     return Ok(());
-// }
-
-// fn export_compressed<R : std::io::Read>(reader : &R, dir : &std::path::Path) {
-//     // Use std::io::Cursor to convert an iterator or data to a reader
-// }
-
-
-use std::io::Write;
-use rand::{Rng, RngCore, SeedableRng};
+use std::io::{BufReader, Read, Write};
 
 fn main() -> std::io::Result<()> {
-    // Constants
-    let random_seed = 1234;
-    let data_size = 100_000_000;
-    let input_files_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/input_files/");
-    let working_files_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/working_files/");
+    // Constants (should eventually be commandline arguments or something)
+    let input_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/input_files/");
+    let working_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/working_files/");
 
-    // Generate random data
-    let mut rng = rand::rngs::StdRng::seed_from_u64(random_seed);
-    let rand_iter  = (0..data_size).map(|_| rng.gen::<u8>());
-    let mut rand_reader = std::io::Cursor::new(rand_iter);
+    // Copy inputs to the working directory
+    std::fs::copy(input_dir.join("random.dat"), working_dir.join("random.dat"))?;
+    std::fs::copy(input_dir.join("wikipedia.bz2"), working_dir.join("wikipedia.bz2"))?;
 
-    let mut rand_file = std::fs::File::create(working_files_dir.join("rand_file.dat"))?;
-    std::io::copy(&mut rand_reader, &mut rand_file);
+    // Compress input files as needed
+    zstd_compress_file(
+        &working_dir.join("random.dat"),
+        &working_dir.join("random_compressed.dat"),
+        0,
+    )?;
 
-    // let rand_file_compressed = std::fs::File::create(working_files_dir.join("rand_file_compressed.dat"))?;
-    // let mut compressor = bzip2::write::BzEncoder::new(rand_file_compressed, bzip2::Compression::best());
-    // compressor.write_all(&rand_data)?;
-    // compressor.finish()?;
+    // Read the compressed random data as a test
+    // let random_compressed_file = std::fs::File::open(working_dir.join("random_compressed.dat"))?;
+    // let mut random_decoder = zstd::Decoder::new(random_compressed_file)?;
 
-    // println!("{:?}", rand_data.len());
+    // let mut out = [0; 10];
+    // random_decoder.read_exact(&mut out)?;
+    // println!("Uncompressed: {:?}", out);
+
+    // let mut random_file = std::fs::File::open(working_dir.join("random.dat"))?;
+    // random_file.read_exact(&mut out)?;
+    // println!("Uncompressed: {:?}", out);
+
+    // Simple benchmarking play
+    let start = std::time::Instant::now();
+    let random_file = std::fs::File::open(working_dir.join("random.dat"))?;
+    let random_file_bufreader = BufReader::new(random_file);
+    let last_byte = random_file_bufreader.bytes().last().unwrap()?;
+    println!("Uncompressed:\tElapsed: {:?}\tLast byte: {:?}", start.elapsed(), last_byte);
+
+    let start = std::time::Instant::now();
+    let random_compressed_file = std::fs::File::open(working_dir.join("random_compressed.dat"))?;
+    let random_decoder = zstd::Decoder::new(random_compressed_file)?;
+    let random_compressed_bufreader = BufReader::new(random_decoder);
+    let last_byte = random_compressed_bufreader.bytes().last().unwrap()?;
+    println!("Compressed:\tElapsed: {:?}\tLast byte: {:?}", start.elapsed(), last_byte);
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("wikipedia.bz2"))?;
+    let compressed_file_bufread = BufReader::new(compressed_file);
+    let decoder = bzip2::bufread::BzDecoder::new(compressed_file_bufread);
+    let last_byte = decoder.bytes().last().unwrap()?;
+    println!("Wikipedia compressed:\tElapsed: {:?}\tLast byte: {:?}", start.elapsed(), last_byte);
 
     return Ok(());
 }
 
-fn export_compressed<R : std::io::Read>(reader : &R, dir : &std::path::Path) {
-    // Use std::io::Cursor to convert an iterator or data to a reader
+/// Convenience function for compressing files with zstd.
+fn zstd_compress_file(
+    source_path: &std::path::Path,
+    destination_path: &std::path::Path,
+    level: i32,
+) -> std::io::Result<()> {
+    let source_file = std::fs::File::open(source_path)?;
+    let mut destination_file = std::fs::File::create(destination_path)?;
+    zstd::stream::copy_encode(source_file, &mut destination_file, level)?;
+    destination_file.flush()?;
+
+    return Ok(());
 }

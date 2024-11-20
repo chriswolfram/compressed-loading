@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 bzip2 = "0.4"
-rand = "0.8.5"
+zstd = "0.13"

@@ -1,11 +1,11 @@
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::{io::{BufReader, BufWriter, Read, Write}, usize};
 
 macro_rules! log_result {
     ($fmt:literal, $($result:expr),*$(,)?) => {
         println!(concat!("{}:{}: ", $fmt), file!(), line!(), $($result,)*);
     };
 }
-const SMALL_FILE_SIZE: u64 = 1 << 33;
+const SMALL_FILE_SIZE: usize = 1 << 33;
 
 fn experiment<F, R>(
     name: &str,
@@ -54,19 +54,21 @@ fn main() -> std::io::Result<()> {
         |file| zstd::Decoder::new(file).expect("Failed to create zstd decoder"),
     )?;
 
-    experiment(
-        "Constant compressed (xz)",
-        working_dir,
-        "constant.xz",
-        xz2::read::XzDecoder::new,
-    )?;
+    
 
-    experiment(
-        "Constant compressed (xz high)",
-        working_dir,
-        "constant_high.xz",
-        xz2::read::XzDecoder::new,
-    )?;
+    // experiment(
+    //     "Constant compressed (xz)",
+    //     working_dir,
+    //     "constant.xz",
+    //     xz2::read::XzDecoder::new,
+    // )?;
+
+    // experiment(
+    //     "Constant compressed (xz high)",
+    //     working_dir,
+    //     "constant_high.xz",
+    //     xz2::read::XzDecoder::new,
+    // )?;
 
     experiment(
         "Wikipedia small uncompressed",
@@ -82,17 +84,38 @@ fn main() -> std::io::Result<()> {
         |file| zstd::Decoder::new(file).expect("Failed to create zstd decoder"),
     )?;
 
+    // experiment(
+    //     "Wikipedia small compressed (xz)",
+    //     working_dir,
+    //     "wikipedia_small.xz",
+    //     xz2::read::XzDecoder::new,
+    // )?;
+
+    // experiment(
+    //     "Wikipedia small compressed (xz high)",
+    //     working_dir,
+    //     "wikipedia_small_high.xz",
+    //     xz2::read::XzDecoder::new,
+    // )?;
+
     experiment(
-        "Wikipedia small compressed (xz)",
+        "Wikipedia uncompressed",
         working_dir,
-        "wikipedia_small.xz",
-        xz2::read::XzDecoder::new,
+        "wikipedia",
+        BufReader::new,
     )?;
 
     experiment(
-        "Wikipedia small compressed (xz high)",
+        "Wikipedia compressed (zstd)",
         working_dir,
-        "wikipedia_small_high.xz",
+        "wikipedia.zst",
+        |file| zstd::Decoder::new(file).expect("Failed to create zstd decoder"),
+    )?;
+
+    experiment(
+        "Wikipedia compressed (xz)",
+        working_dir,
+        "wikipedia.xz",
         xz2::read::XzDecoder::new,
     )?;
 
@@ -103,6 +126,7 @@ fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> st
     setup_files_constant(input_dir, working_dir)?;
     setup_files_random(input_dir, working_dir)?;
     setup_files_wikipedia(input_dir, working_dir)?;
+    setup_files_random_range(input_dir, working_dir)?;
 
     return Ok(());
 }
@@ -155,6 +179,53 @@ fn setup_files_random(
     return Ok(());
 }
 
+fn setup_files_random_range(
+    input_dir: &std::path::Path,
+    working_dir: &std::path::Path,
+) -> std::io::Result<()> {
+    
+    let uncompressed_dir = &working_dir.join("random_range");
+    if !uncompressed_dir.is_dir() {
+        std::fs::DirBuilder::new().create(uncompressed_dir)?;
+    }
+
+    let compressed_dir = &working_dir.join("random_range_compressed");
+    if !compressed_dir.is_dir() {
+        std::fs::DirBuilder::new().create(compressed_dir)?;
+    }
+    
+    // let mut rng = rand::thread_rng();
+
+    // for size in (1..255) {
+    //     let out_file = std::fs::File::create(out_dir.join(size.to_string()))?;
+    //     let mut out_file = BufWriter::new(out_file);
+    //     for b in (0..SMALL_FILE_SIZE).map(|_| rng.gen::<u8>()) {
+    //         out_file.write(&[b % size])?;
+    //     }
+    // }
+
+    let mut random_input = std::fs::File::open(&input_dir.join("random.dat"))?;
+    let mut random_bytes = Vec::new();
+    random_input.read_to_end(&mut random_bytes)?;
+
+    for size in (1..255).step_by(10) {
+        let path = uncompressed_dir.join(size.to_string());
+        if path.exists() {
+            continue;
+        }
+
+        let mut out_file = std::fs::File::create(&path)?;
+        let out_data = random_bytes.iter().map(|x| x % size).collect::<Vec<_>>();
+        out_file.write_all(&out_data)?;
+
+
+        let compressed_path = compressed_dir.join(size.to_string());
+        zstd_compress_file_if_needed(&path, &compressed_path, 0)?;
+    }
+
+    return Ok(());
+}
+
 fn setup_files_wikipedia(
     input_dir: &std::path::Path,
     working_dir: &std::path::Path,
@@ -172,7 +243,7 @@ fn setup_files_wikipedia(
         let source_file = std::fs::File::open(&working_dir.join("wikipedia"))?;
         let mut destination_file = std::fs::File::create(&working_dir.join("wikipedia_small"))?;
         std::io::copy(
-            &mut source_file.take(SMALL_FILE_SIZE),
+            &mut source_file.take(SMALL_FILE_SIZE as u64),
             &mut destination_file,
         )?;
         destination_file.flush()?;
@@ -259,12 +330,14 @@ fn xz_compress_file_if_needed(
 
 fn reader_checksum<R: Read>(mut reader: R) -> u64 {
     let mut buf = [0u8; 1_000_000];
+    let mut last = 0;
     while let Ok(n) = reader.read(&mut buf) {
         if n == 0 {
             break;
         }
+        last = buf[n-1];
     }
-    return buf.last().unwrap().clone() as u64;
+    return last as u64;
 }
 
 fn iterator_checksum<I: Iterator<Item = u8>>(iter: I) -> u64 {

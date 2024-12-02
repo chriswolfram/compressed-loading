@@ -11,3 +11,4 @@ wget "https://dumps.wikimedia.org/enwiki/20241101/enwiki-20241101-pages-meta-his
 - XZ is really slow
 - `.bytes()` can sometimes be really slow if you're not careful
 - ZSTD needs no input or output buffering on stream decoders
+- We tried measuring the elapsed time from before opening the file, and from the beginning of reading data. However, the overhead of opening the file and initializing decompression was negligible.

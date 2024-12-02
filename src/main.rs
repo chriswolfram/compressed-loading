@@ -115,14 +115,9 @@ fn setup_files_random_range(
     working_dir: &std::path::Path,
 ) -> std::io::Result<()> {
     
-    let uncompressed_dir = &working_dir.join("random_range");
-    if !uncompressed_dir.is_dir() {
-        std::fs::DirBuilder::new().create(uncompressed_dir)?;
-    }
-
-    let compressed_dir = &working_dir.join("random_range_compressed");
-    if !compressed_dir.is_dir() {
-        std::fs::DirBuilder::new().create(compressed_dir)?;
+    let out_dir = &working_dir.join("random_range");
+    if !out_dir.is_dir() {
+        std::fs::DirBuilder::new().create(out_dir)?;
     }
     
     // let mut rng = rand::thread_rng();
@@ -140,7 +135,7 @@ fn setup_files_random_range(
     random_input.read_to_end(&mut random_bytes)?;
 
     for size in (1..255).step_by(10) {
-        let path = uncompressed_dir.join(size.to_string());
+        let path = out_dir.join(format!("{}.none.0", size.to_string()));
         if path.exists() {
             continue;
         }
@@ -150,8 +145,7 @@ fn setup_files_random_range(
         out_file.write_all(&out_data)?;
 
 
-        let compressed_path = compressed_dir.join(size.to_string());
-        zstd_compress_file_if_needed(&path, &compressed_path, 0)?;
+        zstd_compress_file_if_needed(&out_dir, &size.to_string(), 0)?;
     }
 
     return Ok(());

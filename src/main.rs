@@ -197,7 +197,7 @@ fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> st
 }
 
 fn setup_files_constant(
-    input_dir: &std::path::Path,
+    _input_dir: &std::path::Path,
     working_dir: &std::path::Path,
 ) -> std::io::Result<()> {
     if !working_dir.join("constant").try_exists()? {

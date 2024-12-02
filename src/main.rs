@@ -1,11 +1,54 @@
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 
 fn main() -> std::io::Result<()> {
     // Constants (should eventually be commandline arguments or something)
     let input_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/input_files/");
     let working_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/working_files/");
 
+    // Populate the working directory as needed
     setup_files(input_dir, working_dir)?;
+
+    // Run some experiments
+    let start = std::time::Instant::now();
+    let file = std::fs::File::open(working_dir.join("constant"))?;
+    let file_bufread = BufReader::new(file);
+    let checksum = reader_checksum(file_bufread);
+    println!(
+        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        start.elapsed(),
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
+    let decoder = xz2::read::XzDecoder::new(compressed_file);
+    let checksum = reader_checksum(decoder);
+    println!(
+        "Constant compressed (xz):\tElapsed: {:?}\tChecksum: {:?}",
+        start.elapsed(),
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("constant_high.xz"))?;
+    let decoder = xz2::read::XzDecoder::new(compressed_file);
+    let checksum = reader_checksum(decoder);
+    println!(
+        "Constant compressed (xz high):\tElapsed: {:?}\tChecksum: {:?}",
+        start.elapsed(),
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
+    let compressed_file_bufread = BufReader::new(compressed_file);
+    let decoder = zstd::Decoder::new(compressed_file_bufread)?;
+    let checksum = reader_checksum(decoder);
+    println!(
+        "Constant compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+        start.elapsed(),
+        checksum
+    );
 
     let start = std::time::Instant::now();
     let file = std::fs::File::open(working_dir.join("wikipedia_small"))?;
@@ -48,28 +91,64 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(input_dir.join("wikipedia_small.bz2"))?;
-    let compressed_file_bufread = BufReader::new(compressed_file);
-    let decoder = bzip2::bufread::BzDecoder::new(compressed_file_bufread);
-    let checksum = reader_checksum(decoder);
-    println!(
-        "Wikipedia compressed (bzip2):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
+    // let start = std::time::Instant::now();
+    // let compressed_file = std::fs::File::open(input_dir.join("wikipedia_small.bz2"))?;
+    // let compressed_file_bufread = BufReader::new(compressed_file);
+    // let decoder = bzip2::bufread::BzDecoder::new(compressed_file_bufread);
+    // let checksum = reader_checksum(decoder);
+    // println!(
+    //     "Wikipedia compressed (bzip2):\tElapsed: {:?}\tChecksum: {:?}",
+    //     start.elapsed(),
+    //     checksum
+    // );
 
     return Ok(());
 }
 
 fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
+
+    setup_files_constant(input_dir, working_dir)?;
     setup_files_random(input_dir, working_dir)?;
     setup_files_wikipedia(input_dir, working_dir)?;
 
     return Ok(());
 }
 
+fn setup_files_constant(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
+    
+    if !working_dir.join("constant").try_exists()? {
+        let bytes = "A".as_bytes();
+        let destination_file = std::fs::File::create(&working_dir.join("constant"))?;
+        let mut destination_file = BufWriter::new(destination_file);
+        for _ in 1..1_000_000_000 {
+            destination_file.write_all(bytes)?;
+        }
+        destination_file.flush()?;
+    }
+
+    zstd_compress_file_if_needed(
+        &working_dir.join("constant"),
+        &working_dir.join("constant.zst"),
+        0,
+    )?;
+
+    xz_compress_file_if_needed(
+        &working_dir.join("constant"),
+        &working_dir.join("constant.xz"),
+        6,
+    )?;
+
+    xz_compress_file_if_needed(
+        &working_dir.join("constant"),
+        &working_dir.join("constant_high.xz"),
+        9,
+    )?;
+
+    return Ok(());
+}
+
 fn setup_files_random(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
+
     zstd_compress_file_if_needed(
         &input_dir.join("random.dat"),
         &working_dir.join("random_compressed.dat"),
@@ -80,6 +159,7 @@ fn setup_files_random(input_dir: &std::path::Path, working_dir: &std::path::Path
 }
 
 fn setup_files_wikipedia(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
+
     if !working_dir.join("wikipedia").try_exists()? {
         let source_file = std::fs::File::open(&input_dir.join("wikipedia.bz2"))?;
         let source_bufread = BufReader::new(source_file);

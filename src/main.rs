@@ -67,7 +67,7 @@ fn main() -> std::io::Result<()> {
 
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let compressed_file_bufread = BufReader::with_capacity(1_000_000_000, compressed_file);
+    let compressed_file_bufread = BufReader::with_capacity(1 << 30, compressed_file);
     let decoder = zstd::Decoder::new(compressed_file_bufread)?;
     let checksum = reader_checksum(decoder);
     let duration = start.elapsed();
@@ -204,7 +204,7 @@ fn setup_files_constant(
         let bytes = "A".as_bytes();
         let destination_file = std::fs::File::create(&working_dir.join("constant"))?;
         let mut destination_file = BufWriter::new(destination_file);
-        for _ in 1..1_000_000_000 {
+        for _ in 1..(1 << 30) {
             destination_file.write_all(bytes)?;
         }
         destination_file.flush()?;
@@ -260,7 +260,7 @@ fn setup_files_wikipedia(
     if !working_dir.join("wikipedia_small").try_exists()? {
         let source_file = std::fs::File::open(&working_dir.join("wikipedia"))?;
         let mut destination_file = std::fs::File::create(&working_dir.join("wikipedia_small"))?;
-        std::io::copy(&mut source_file.take(1_000_000_000), &mut destination_file)?;
+        std::io::copy(&mut source_file.take(1 << 30), &mut destination_file)?;
         destination_file.flush()?;
     }
 

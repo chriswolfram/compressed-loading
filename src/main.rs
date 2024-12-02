@@ -2,9 +2,8 @@ use std::io::{BufReader, BufWriter, Read, Write};
 
 fn main() -> std::io::Result<()> {
     // Constants (should eventually be commandline arguments or something)
-    let input_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/input_files/");
-    let working_dir =
-        std::path::Path::new("/Users/christopher/git/compressed-loading/working_files/");
+    let input_dir = std::path::Path::new("input_files/");
+    let working_dir = std::path::Path::new("working_files/");
 
     // Populate the working directory as needed
     setup_files(input_dir, working_dir)?;

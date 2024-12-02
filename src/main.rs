@@ -1,5 +1,11 @@
 use std::io::{BufReader, BufWriter, Read, Write};
 
+macro_rules! log_result {
+    ($fmt:literal, $($result:expr),*$(,)?) => {
+        println!(concat!("{}:{}: ", $fmt), file!(), line!(), $($result,)*);
+    };
+}
+
 fn main() -> std::io::Result<()> {
     // Constants (should eventually be commandline arguments or something)
     let input_dir = std::path::Path::new("input_files/");
@@ -16,9 +22,10 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "With purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     let start = std::time::Instant::now();
@@ -27,9 +34,10 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Without purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     let start = std::time::Instant::now();
@@ -38,9 +46,10 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Without purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     purge_filesystem_caches();
@@ -50,11 +59,11 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "With purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
-
 
     // Benchmarking experiments
     purge_filesystem_caches();
@@ -64,9 +73,10 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)?;
     let checksum = reader_checksum(std::io::Cursor::new(buf));
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     purge_filesystem_caches();
@@ -76,9 +86,10 @@ fn main() -> std::io::Result<()> {
     file.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
@@ -88,9 +99,10 @@ fn main() -> std::io::Result<()> {
     let start = std::time::Instant::now();
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     purge_filesystem_caches();
@@ -99,9 +111,10 @@ fn main() -> std::io::Result<()> {
     let file_bufread = BufReader::new(file);
     let checksum = reader_checksum(file_bufread);
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     purge_filesystem_caches();
@@ -113,9 +126,10 @@ fn main() -> std::io::Result<()> {
     decoder.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Constant compressed buffer (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     purge_filesystem_caches();
@@ -125,9 +139,10 @@ fn main() -> std::io::Result<()> {
     let decoder = zstd::Decoder::new(compressed_file_bufread)?;
     let checksum = reader_checksum(decoder);
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Constant compressed bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     purge_filesystem_caches();
@@ -137,9 +152,10 @@ fn main() -> std::io::Result<()> {
     let decoder = zstd::Decoder::new(compressed_file_bufread)?;
     let checksum = reader_checksum(decoder);
     let duration = start.elapsed();
-    println!(
+    log_result!(
         "Constant compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration, checksum
+        duration,
+        checksum
     );
 
     purge_filesystem_caches();
@@ -149,7 +165,7 @@ fn main() -> std::io::Result<()> {
     let mut buf = Vec::new();
     decoder.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
-    println!(
+    log_result!(
         "Constant compressed buffer (xz):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -164,7 +180,7 @@ fn main() -> std::io::Result<()> {
     let mut buf = Vec::new();
     decoder.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
-    println!(
+    log_result!(
         "Constant compressed buffer 2 (xz):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -175,7 +191,7 @@ fn main() -> std::io::Result<()> {
     let compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
     let checksum = reader_checksum(decoder);
-    println!(
+    log_result!(
         "Constant compressed (xz):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -186,7 +202,7 @@ fn main() -> std::io::Result<()> {
     let compressed_file = std::fs::File::open(working_dir.join("constant_high.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
     let checksum = reader_checksum(decoder);
-    println!(
+    log_result!(
         "Constant compressed (xz high):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -197,7 +213,7 @@ fn main() -> std::io::Result<()> {
     let file = std::fs::File::open(working_dir.join("wikipedia_small"))?;
     let file_bufread = BufReader::new(file);
     let checksum = reader_checksum(file_bufread);
-    println!(
+    log_result!(
         "Wikipedia uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -208,7 +224,7 @@ fn main() -> std::io::Result<()> {
     let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
     let checksum = reader_checksum(decoder);
-    println!(
+    log_result!(
         "Wikipedia compressed (xz):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -219,7 +235,7 @@ fn main() -> std::io::Result<()> {
     let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small_high.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
     let checksum = reader_checksum(decoder);
-    println!(
+    log_result!(
         "Wikipedia compressed (xz high):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -231,7 +247,7 @@ fn main() -> std::io::Result<()> {
     let compressed_file_bufread = BufReader::new(compressed_file);
     let decoder = zstd::Decoder::new(compressed_file_bufread)?;
     let checksum = reader_checksum(decoder);
-    println!(
+    log_result!(
         "Wikipedia compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
@@ -243,7 +259,7 @@ fn main() -> std::io::Result<()> {
     // let compressed_file_bufread = BufReader::new(compressed_file);
     // let decoder = bzip2::bufread::BzDecoder::new(compressed_file_bufread);
     // let checksum = reader_checksum(decoder);
-    // println!(
+    // log_result!(
     //     "Wikipedia compressed (bzip2):\tElapsed: {:?}\tChecksum: {:?}",
     //     start.elapsed(),
     //     checksum

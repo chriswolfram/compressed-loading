@@ -366,9 +366,14 @@ fn xz_compress_file_if_needed(
 // }
 
 fn reader_checksum<R: Read>(reader: R) -> u64 {
-    return reader.bytes().last().unwrap().unwrap() as u64;
+    return reader
+        .bytes()
+        .map(std::hint::black_box)
+        .last()
+        .unwrap()
+        .unwrap() as u64;
 }
 
 fn iterator_checksum<I: Iterator<Item = u8>>(iter: I) -> u64 {
-    return iter.last().unwrap() as u64;
+    return iter.last().map(std::hint::black_box).unwrap() as u64;
 }

@@ -3,7 +3,8 @@ use std::io::{BufReader, BufWriter, Read, Write};
 fn main() -> std::io::Result<()> {
     // Constants (should eventually be commandline arguments or something)
     let input_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/input_files/");
-    let working_dir = std::path::Path::new("/Users/christopher/git/compressed-loading/working_files/");
+    let working_dir =
+        std::path::Path::new("/Users/christopher/git/compressed-loading/working_files/");
 
     // Populate the working directory as needed
     setup_files(input_dir, working_dir)?;
@@ -17,8 +18,7 @@ fn main() -> std::io::Result<()> {
     let duration = start.elapsed();
     println!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
+        duration, checksum
     );
 
     let start = std::time::Instant::now();
@@ -29,8 +29,7 @@ fn main() -> std::io::Result<()> {
     let duration = start.elapsed();
     println!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
+        duration, checksum
     );
 
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
@@ -41,8 +40,7 @@ fn main() -> std::io::Result<()> {
     let duration = start.elapsed();
     println!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
+        duration, checksum
     );
 
     let start = std::time::Instant::now();
@@ -52,8 +50,7 @@ fn main() -> std::io::Result<()> {
     let duration = start.elapsed();
     println!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
+        duration, checksum
     );
 
     let start = std::time::Instant::now();
@@ -66,8 +63,7 @@ fn main() -> std::io::Result<()> {
     let duration = start.elapsed();
     println!(
         "Constant compressed buffer (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
+        duration, checksum
     );
 
     let start = std::time::Instant::now();
@@ -78,8 +74,7 @@ fn main() -> std::io::Result<()> {
     let duration = start.elapsed();
     println!(
         "Constant compressed bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
+        duration, checksum
     );
 
     let start = std::time::Instant::now();
@@ -90,8 +85,7 @@ fn main() -> std::io::Result<()> {
     let duration = start.elapsed();
     println!(
         "Constant compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
+        duration, checksum
     );
 
     let start = std::time::Instant::now();
@@ -196,7 +190,6 @@ fn main() -> std::io::Result<()> {
 }
 
 fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
-
     setup_files_constant(input_dir, working_dir)?;
     setup_files_random(input_dir, working_dir)?;
     setup_files_wikipedia(input_dir, working_dir)?;
@@ -204,8 +197,10 @@ fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> st
     return Ok(());
 }
 
-fn setup_files_constant(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
-    
+fn setup_files_constant(
+    input_dir: &std::path::Path,
+    working_dir: &std::path::Path,
+) -> std::io::Result<()> {
     if !working_dir.join("constant").try_exists()? {
         let bytes = "A".as_bytes();
         let destination_file = std::fs::File::create(&working_dir.join("constant"))?;
@@ -237,8 +232,10 @@ fn setup_files_constant(input_dir: &std::path::Path, working_dir: &std::path::Pa
     return Ok(());
 }
 
-fn setup_files_random(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
-
+fn setup_files_random(
+    input_dir: &std::path::Path,
+    working_dir: &std::path::Path,
+) -> std::io::Result<()> {
     zstd_compress_file_if_needed(
         &input_dir.join("random.dat"),
         &working_dir.join("random_compressed.dat"),
@@ -248,8 +245,10 @@ fn setup_files_random(input_dir: &std::path::Path, working_dir: &std::path::Path
     return Ok(());
 }
 
-fn setup_files_wikipedia(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
-
+fn setup_files_wikipedia(
+    input_dir: &std::path::Path,
+    working_dir: &std::path::Path,
+) -> std::io::Result<()> {
     if !working_dir.join("wikipedia").try_exists()? {
         let source_file = std::fs::File::open(&input_dir.join("wikipedia.bz2"))?;
         let source_bufread = BufReader::new(source_file);
@@ -343,7 +342,6 @@ fn xz_compress_file_if_needed(
     return Ok(());
 }
 
-
 // Experiment utilities
 
 /// Generate a super cheap hash of a reader.
@@ -371,6 +369,6 @@ fn reader_checksum<R: Read>(reader: R) -> u64 {
     return reader.bytes().last().unwrap().unwrap() as u64;
 }
 
-fn iterator_checksum<I: Iterator<Item = u8>>(iter : I) -> u64 {
+fn iterator_checksum<I: Iterator<Item = u8>>(iter: I) -> u64 {
     return iter.last().unwrap() as u64;
 }

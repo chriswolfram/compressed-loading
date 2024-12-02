@@ -8,7 +8,61 @@ fn main() -> std::io::Result<()> {
     // Populate the working directory as needed
     setup_files(input_dir, working_dir)?;
 
-    // Run some experiments
+    // Purge experiments
+    purge_filesystem_caches();
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    purge_filesystem_caches();
+    let start = std::time::Instant::now();
+    let checksum = iterator_checksum(buf.into_iter());
+    let duration = start.elapsed();
+    println!(
+        "With purge:\tElapsed: {:?}\tChecksum: {:?}",
+        duration, checksum
+    );
+
+    let start = std::time::Instant::now();
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    purge_filesystem_caches();
+    let start = std::time::Instant::now();
+    let checksum = iterator_checksum(buf.into_iter());
+    let duration = start.elapsed();
+    println!(
+        "Without purge:\tElapsed: {:?}\tChecksum: {:?}",
+        duration, checksum
+    );
+
+    let start = std::time::Instant::now();
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    purge_filesystem_caches();
+    let start = std::time::Instant::now();
+    let checksum = iterator_checksum(buf.into_iter());
+    let duration = start.elapsed();
+    println!(
+        "Without purge:\tElapsed: {:?}\tChecksum: {:?}",
+        duration, checksum
+    );
+
+    purge_filesystem_caches();
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    purge_filesystem_caches();
+    let start = std::time::Instant::now();
+    let checksum = iterator_checksum(buf.into_iter());
+    let duration = start.elapsed();
+    println!(
+        "With purge:\tElapsed: {:?}\tChecksum: {:?}",
+        duration, checksum
+    );
+
+
+    // Benchmarking experiments
     purge_filesystem_caches();
     let start = std::time::Instant::now();
     let mut file = std::fs::File::open(working_dir.join("constant"))?;

@@ -7,6 +7,31 @@ macro_rules! log_result {
 }
 const SMALL_FILE_SIZE: u64 = 1 << 33;
 
+fn experiment<F, R>(
+    name: &str,
+    working_dir: &std::path::Path,
+    file: &str,
+    reader_wrapper: F,
+) -> std::io::Result<()>
+where
+    F: FnOnce(std::fs::File) -> R,
+    R: Read,
+{
+    purge_filesystem_caches();
+    let start = std::time::Instant::now();
+    let file = std::fs::File::open(working_dir.join(file))?;
+    let reader = reader_wrapper(file);
+    let checksum = reader_checksum(reader);
+    let duration = start.elapsed();
+    log_result!(
+        "{}:\tElapsed: {:?}\tChecksum: {:?}",
+        name,
+        duration,
+        checksum
+    );
+    return Ok(());
+}
+
 fn main() -> std::io::Result<()> {
     // Constants (should eventually be commandline arguments or something)
     let input_dir = std::path::Path::new("input_files/");
@@ -15,283 +40,61 @@ fn main() -> std::io::Result<()> {
     // Populate the working directory as needed
     setup_files(input_dir, working_dir)?;
 
-    // Purge experiments
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let mut file = std::fs::File::open(working_dir.join("constant"))?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    let duration = start.elapsed();
-    log_result!(
-        "With purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
+    experiment(
+        "Constant uncompressed with bufreader",
+        working_dir,
+        "constant",
+        BufReader::new,
+    )?;
 
-    let start = std::time::Instant::now();
-    let mut file = std::fs::File::open(working_dir.join("constant"))?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    let duration = start.elapsed();
-    log_result!(
-        "Without purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
+    experiment(
+        "Constant compressed (zstd)",
+        working_dir,
+        "constant.zst",
+        |file| zstd::Decoder::new(file).expect("Failed to create zstd decoder"),
+    )?;
 
-    let start = std::time::Instant::now();
-    let mut file = std::fs::File::open(working_dir.join("constant"))?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    let duration = start.elapsed();
-    log_result!(
-        "Without purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
+    experiment(
+        "Constant compressed (xz)",
+        working_dir,
+        "constant.xz",
+        xz2::read::XzDecoder::new,
+    )?;
 
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let mut file = std::fs::File::open(working_dir.join("constant"))?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    let duration = start.elapsed();
-    log_result!(
-        "With purge:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
+    experiment(
+        "Constant compressed (xz high)",
+        working_dir,
+        "constant_high.xz",
+        xz2::read::XzDecoder::new,
+    )?;
 
-    // Benchmarking experiments
+    experiment(
+        "Wikipedia small uncompressed",
+        working_dir,
+        "wikipedia_small",
+        BufReader::new,
+    )?;
 
-    println!("Reccomended output buffer for zstd: {:?}", zstd::Decoder::<BufReader<std::fs::File>>::recommended_output_size());
+    experiment(
+        "Wikipedia small compressed (zstd)",
+        working_dir,
+        "wikipedia_small.zst",
+        |file| zstd::Decoder::new(file).expect("Failed to create zstd decoder"),
+    )?;
 
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let mut file = std::fs::File::open(working_dir.join("constant"))?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    let checksum = reader_checksum(std::io::Cursor::new(buf));
-    let duration = start.elapsed();
-    log_result!(
-        "Constant uncompressed with read_to_end and reader_checksum:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
+    experiment(
+        "Wikipedia small compressed (xz)",
+        working_dir,
+        "wikipedia_small.xz",
+        xz2::read::XzDecoder::new,
+    )?;
 
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let mut file = std::fs::File::open(working_dir.join("constant"))?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    let duration = start.elapsed();
-    log_result!(
-        "Constant uncompressed with read_to_end and iterator_checksum:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
-
-    // let mut file = std::fs::File::open(working_dir.join("constant"))?;
-    // let mut buf = Vec::new();
-    // file.read_to_end(&mut buf)?;
-    // purge_filesystem_caches();
-    // let start = std::time::Instant::now();
-    // let checksum = iterator_checksum(buf.into_iter());
-    // let duration = start.elapsed();
-    // log_result!(
-    //     "Constant iterator checksum alone:\tElapsed: {:?}\tChecksum: {:?}",
-    //     duration,
-    //     checksum
-    // );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let file = std::fs::File::open(working_dir.join("constant"))?;
-    let file_bufread = BufReader::new(file);
-    let checksum = reader_checksum(file_bufread);
-    let duration = start.elapsed();
-    log_result!(
-        "Constant uncompressed with bufreader:\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let mut decoder = zstd::Decoder::new(compressed_file)?;
-    let mut buf = Vec::new();
-    decoder.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    let duration = start.elapsed();
-    log_result!(
-        "Constant compressed with read_to_end (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let decoder = zstd::Decoder::new(compressed_file)?;
-    let decoder_bufreader = BufReader::with_capacity(1 << 30, decoder);
-    let checksum = reader_checksum(decoder_bufreader);
-    let duration = start.elapsed();
-    log_result!(
-        "Constant compressed with bufreaders on decoder (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
-
-    // purge_filesystem_caches();
-    // let start = std::time::Instant::now();
-    // let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    // let compressed_file_bufread = BufReader::with_capacity(1 << 30, compressed_file);
-    // let decoder = zstd::Decoder::new(compressed_file_bufread)?;
-    // let checksum = reader_checksum(decoder);
-    // let duration = start.elapsed();
-    // log_result!(
-    //     "Constant compressed with big bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-    //     duration,
-    //     checksum
-    // );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let compressed_file_bufread = BufReader::new(compressed_file);
-    let decoder = zstd::Decoder::new(compressed_file_bufread)?;
-    let checksum = reader_checksum(decoder);
-    let duration = start.elapsed();
-    log_result!(
-        "Constant compressed with bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let decoder = zstd::Decoder::new(compressed_file)?;
-    let checksum = reader_checksum(decoder);
-    let duration = start.elapsed();
-    log_result!(
-        "Constant compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        duration,
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
-    let mut decoder = xz2::read::XzDecoder::new(compressed_file);
-    let mut buf = Vec::new();
-    decoder.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    log_result!(
-        "Constant compressed buffer (xz):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let mut compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
-    let mut compressed_buf = Vec::new();
-    compressed_file.read_to_end(&mut compressed_buf)?;
-    let mut decoder = xz2::read::XzDecoder::new(std::io::Cursor::new(compressed_buf));
-    let mut buf = Vec::new();
-    decoder.read_to_end(&mut buf)?;
-    let checksum = iterator_checksum(buf.into_iter());
-    log_result!(
-        "Constant compressed buffer 2 (xz):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
-    let decoder = xz2::read::XzDecoder::new(compressed_file);
-    let checksum = reader_checksum(decoder);
-    log_result!(
-        "Constant compressed (xz):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant_high.xz"))?;
-    let decoder = xz2::read::XzDecoder::new(compressed_file);
-    let checksum = reader_checksum(decoder);
-    log_result!(
-        "Constant compressed (xz high):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let file = std::fs::File::open(working_dir.join("wikipedia_small"))?;
-    let file_bufread = BufReader::new(file);
-    let checksum = reader_checksum(file_bufread);
-    log_result!(
-        "Wikipedia uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small.xz"))?;
-    let decoder = xz2::read::XzDecoder::new(compressed_file);
-    let checksum = reader_checksum(decoder);
-    log_result!(
-        "Wikipedia compressed (xz):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small_high.xz"))?;
-    let decoder = xz2::read::XzDecoder::new(compressed_file);
-    let checksum = reader_checksum(decoder);
-    log_result!(
-        "Wikipedia compressed (xz high):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small.zst"))?;
-    let compressed_file_bufread = BufReader::new(compressed_file);
-    let decoder = zstd::Decoder::new(compressed_file_bufread)?;
-    let checksum = reader_checksum(decoder);
-    log_result!(
-        "Wikipedia compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    // purge_caches();
-    // let start = std::time::Instant::now();
-    // let compressed_file = std::fs::File::open(input_dir.join("wikipedia_small.bz2"))?;
-    // let compressed_file_bufread = BufReader::new(compressed_file);
-    // let decoder = bzip2::bufread::BzDecoder::new(compressed_file_bufread);
-    // let checksum = reader_checksum(decoder);
-    // log_result!(
-    //     "Wikipedia compressed (bzip2):\tElapsed: {:?}\tChecksum: {:?}",
-    //     start.elapsed(),
-    //     checksum
-    // );
+    experiment(
+        "Wikipedia small compressed (xz high)",
+        working_dir,
+        "wikipedia_small_high.xz",
+        xz2::read::XzDecoder::new,
+    )?;
 
     return Ok(());
 }

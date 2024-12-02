@@ -10,11 +10,10 @@ fn main() -> std::io::Result<()> {
 
     // Purge experiments
     purge_filesystem_caches();
+    let start = std::time::Instant::now();
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
     println!(
@@ -26,8 +25,6 @@ fn main() -> std::io::Result<()> {
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
     println!(
@@ -39,8 +36,6 @@ fn main() -> std::io::Result<()> {
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
     println!(
@@ -49,11 +44,10 @@ fn main() -> std::io::Result<()> {
     );
 
     purge_filesystem_caches();
+    let start = std::time::Instant::now();
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    purge_filesystem_caches();
-    let start = std::time::Instant::now();
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
     println!(

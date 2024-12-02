@@ -67,6 +67,7 @@ fn main() -> std::io::Result<()> {
     );
 
     // Benchmarking experiments
+
     purge_filesystem_caches();
     let start = std::time::Instant::now();
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
@@ -75,7 +76,7 @@ fn main() -> std::io::Result<()> {
     let checksum = reader_checksum(std::io::Cursor::new(buf));
     let duration = start.elapsed();
     log_result!(
-        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant uncompressed with read_to_end and reader_checksum:\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );
@@ -88,7 +89,7 @@ fn main() -> std::io::Result<()> {
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
     log_result!(
-        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant uncompressed with read_to_end and iterator_checksum:\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );
@@ -101,7 +102,7 @@ fn main() -> std::io::Result<()> {
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
     log_result!(
-        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant iterator checksum alone:\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );
@@ -113,7 +114,7 @@ fn main() -> std::io::Result<()> {
     let checksum = reader_checksum(file_bufread);
     let duration = start.elapsed();
     log_result!(
-        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant uncompressed with bufreader:\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );
@@ -121,14 +122,13 @@ fn main() -> std::io::Result<()> {
     purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let compressed_file_bufread = BufReader::new(compressed_file);
-    let mut decoder = zstd::Decoder::new(compressed_file_bufread)?;
+    let mut decoder = zstd::Decoder::new(compressed_file)?;
     let mut buf = Vec::new();
     decoder.read_to_end(&mut buf)?;
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
     log_result!(
-        "Constant compressed buffer (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant compressed with read_to_end (zstd):\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );
@@ -136,15 +136,28 @@ fn main() -> std::io::Result<()> {
     purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let compressed_file_bufread = BufReader::with_capacity(1 << 30, compressed_file);
-    let decoder = zstd::Decoder::new(compressed_file_bufread)?;
-    let checksum = reader_checksum(decoder);
+    let decoder = zstd::Decoder::new(compressed_file)?;
+    let decoder_bufreader = BufReader::with_capacity(1 << 30, decoder);
+    let checksum = reader_checksum(decoder_bufreader);
     let duration = start.elapsed();
     log_result!(
-        "Constant compressed bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant compressed with bufreaders on decoder (zstd):\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );
+
+    // purge_filesystem_caches();
+    // let start = std::time::Instant::now();
+    // let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
+    // let compressed_file_bufread = BufReader::with_capacity(1 << 30, compressed_file);
+    // let decoder = zstd::Decoder::new(compressed_file_bufread)?;
+    // let checksum = reader_checksum(decoder);
+    // let duration = start.elapsed();
+    // log_result!(
+    //     "Constant compressed with big bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+    //     duration,
+    //     checksum
+    // );
 
     purge_filesystem_caches();
     let start = std::time::Instant::now();
@@ -154,7 +167,7 @@ fn main() -> std::io::Result<()> {
     let checksum = reader_checksum(decoder);
     let duration = start.elapsed();
     log_result!(
-        "Constant compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant compressed with bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );

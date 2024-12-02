@@ -9,6 +9,7 @@ fn main() -> std::io::Result<()> {
     setup_files(input_dir, working_dir)?;
 
     // Run some experiments
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
@@ -20,6 +21,7 @@ fn main() -> std::io::Result<()> {
         duration, checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
@@ -34,6 +36,7 @@ fn main() -> std::io::Result<()> {
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let checksum = iterator_checksum(buf.into_iter());
     let duration = start.elapsed();
@@ -42,6 +45,7 @@ fn main() -> std::io::Result<()> {
         duration, checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let file = std::fs::File::open(working_dir.join("constant"))?;
     let file_bufread = BufReader::new(file);
@@ -52,6 +56,7 @@ fn main() -> std::io::Result<()> {
         duration, checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
     let compressed_file_bufread = BufReader::new(compressed_file);
@@ -65,6 +70,7 @@ fn main() -> std::io::Result<()> {
         duration, checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
     let compressed_file_bufread = BufReader::with_capacity(1 << 30, compressed_file);
@@ -76,6 +82,7 @@ fn main() -> std::io::Result<()> {
         duration, checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
     let compressed_file_bufread = BufReader::new(compressed_file);
@@ -87,6 +94,7 @@ fn main() -> std::io::Result<()> {
         duration, checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
     let mut decoder = xz2::read::XzDecoder::new(compressed_file);
@@ -99,6 +107,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let mut compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
     let mut compressed_buf = Vec::new();
@@ -113,6 +122,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
@@ -123,6 +133,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("constant_high.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
@@ -133,6 +144,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let file = std::fs::File::open(working_dir.join("wikipedia_small"))?;
     let file_bufread = BufReader::new(file);
@@ -143,6 +155,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
@@ -153,6 +166,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small_high.xz"))?;
     let decoder = xz2::read::XzDecoder::new(compressed_file);
@@ -163,6 +177,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    purge_filesystem_caches();
     let start = std::time::Instant::now();
     let compressed_file = std::fs::File::open(working_dir.join("wikipedia_small.zst"))?;
     let compressed_file_bufread = BufReader::new(compressed_file);
@@ -174,6 +189,7 @@ fn main() -> std::io::Result<()> {
         checksum
     );
 
+    // purge_caches();
     // let start = std::time::Instant::now();
     // let compressed_file = std::fs::File::open(input_dir.join("wikipedia_small.bz2"))?;
     // let compressed_file_bufread = BufReader::new(compressed_file);
@@ -375,4 +391,20 @@ fn reader_checksum<R: Read>(reader: R) -> u64 {
 
 fn iterator_checksum<I: Iterator<Item = u8>>(iter: I) -> u64 {
     return iter.last().map(std::hint::black_box).unwrap() as u64;
+}
+
+fn purge_filesystem_caches() {
+    if cfg!(target_os = "linux") {
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg("sync && echo 3 > /proc/sys/vm/drop_caches")
+            .output()
+            .expect("Failed to purge");
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg("sync && sudo purge")
+            .output()
+            .expect("Failed to purge");
+    }
 }

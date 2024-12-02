@@ -68,15 +68,43 @@ fn main() -> std::io::Result<()> {
 
     // Benchmarking experiments
 
+    println!("Reccomended output buffer for zstd: {:?}", zstd::Decoder::<BufReader<std::fs::File>>::recommended_output_size());
+
+    // purge_filesystem_caches();
+    // let start = std::time::Instant::now();
+    // let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    // let mut buf = Vec::new();
+    // file.read_to_end(&mut buf)?;
+    // let checksum = reader_checksum(std::io::Cursor::new(buf));
+    // let duration = start.elapsed();
+    // log_result!(
+    //     "Constant uncompressed with read_to_end and reader_checksum:\tElapsed: {:?}\tChecksum: {:?}",
+    //     duration,
+    //     checksum
+    // );
+
     purge_filesystem_caches();
     let start = std::time::Instant::now();
     let mut file = std::fs::File::open(working_dir.join("constant"))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
-    let checksum = reader_checksum(std::io::Cursor::new(buf));
+    let checksum = reader_checksum_buffer(std::io::Cursor::new(buf));
     let duration = start.elapsed();
     log_result!(
-        "Constant uncompressed with read_to_end and reader_checksum:\tElapsed: {:?}\tChecksum: {:?}",
+        "Constant uncompressed with read_to_end and reader_checksum_buffer:\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    purge_filesystem_caches();
+    let start = std::time::Instant::now();
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    let checksum = reader_checksum_buffer_small(std::io::Cursor::new(buf));
+    let duration = start.elapsed();
+    log_result!(
+        "Constant uncompressed with read_to_end and reader_checksum_buffer_small:\tElapsed: {:?}\tChecksum: {:?}",
         duration,
         checksum
     );
@@ -461,13 +489,33 @@ fn xz_compress_file_if_needed(
 //     return out;
 // }
 
-fn reader_checksum<R: Read>(reader: R) -> u64 {
+fn reader_checksum<R: Read>(mut reader: R) -> u64 {
     return reader
         .bytes()
         .map(std::hint::black_box)
         .last()
         .unwrap()
         .unwrap() as u64;
+}
+
+fn reader_checksum_buffer<R: Read>(mut reader: R) -> u64 {
+    let mut buf = [0u8; 1_000_000];
+    while let Ok(n) = reader.read(&mut buf) {
+        if n == 0 {
+            break;
+        }
+    }
+    return buf.last().unwrap().clone() as u64;
+}
+
+fn reader_checksum_buffer_small<R: Read>(mut reader: R) -> u64 {
+    let mut buf = [0u8; 1_000];
+    while let Ok(n) = reader.read(&mut buf) {
+        if n == 0 {
+            break;
+        }
+    }
+    return buf.last().unwrap().clone() as u64;
 }
 
 fn iterator_checksum<I: Iterator<Item = u8>>(iter: I) -> u64 {

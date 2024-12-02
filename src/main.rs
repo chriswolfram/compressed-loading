@@ -267,10 +267,6 @@ fn reader_checksum<R: Read>(mut reader: R) -> u64 {
     return buf.last().unwrap().clone() as u64;
 }
 
-fn iterator_checksum<I: Iterator<Item = u8>>(iter: I) -> u64 {
-    return iter.last().unwrap() as u64;
-}
-
 fn purge_filesystem_caches() {
     if cfg!(target_os = "linux") {
         std::process::Command::new("sh")

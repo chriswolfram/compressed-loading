@@ -81,6 +81,14 @@ fn main() -> std::io::Result<()> {
         &[("none", 0), ("zstd", 0), ("xz", 6)],
     )?;
 
+    for size in (1..255).step_by(10) {
+        experiment_test_case(
+            &working_dir.join("random_range"),
+            &size.to_string(),
+            &[("none", 0), ("zstd", 0)],
+        )?;
+    }
+
     return Ok(());
 }
 

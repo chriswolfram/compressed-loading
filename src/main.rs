@@ -1,4 +1,7 @@
-use std::{io::{BufReader, BufWriter, Read, Write}, usize};
+use std::{
+    io::{BufReader, BufWriter, Read, Write},
+    usize,
+};
 
 const SMALL_FILE_SIZE: usize = 1 << 33;
 
@@ -35,7 +38,7 @@ fn experiment(
 fn experiment_name(test_case: &str, algorithm: &str, level: i32) -> String {
     match algorithm {
         "none" => format!("{test_case} (uncompressed)"),
-        _ => format!("{test_case} ({algorithm}, {level})"),
+        _ => format!("{test_case} ({algorithm} {level})"),
     }
 }
 
@@ -114,12 +117,11 @@ fn setup_files_random_range(
     input_dir: &std::path::Path,
     working_dir: &std::path::Path,
 ) -> std::io::Result<()> {
-    
     let out_dir = &working_dir.join("random_range");
     if !out_dir.is_dir() {
         std::fs::DirBuilder::new().create(out_dir)?;
     }
-    
+
     // let mut rng = rand::thread_rng();
 
     // for size in (1..255) {
@@ -143,7 +145,6 @@ fn setup_files_random_range(
         let mut out_file = std::fs::File::create(&path)?;
         let out_data = random_bytes.iter().map(|x| x % size).collect::<Vec<_>>();
         out_file.write_all(&out_data)?;
-
 
         zstd_compress_file_if_needed(&out_dir, &size.to_string(), 0)?;
     }
@@ -245,7 +246,7 @@ fn reader_checksum<R: Read>(mut reader: R) -> u64 {
         if n == 0 {
             break;
         }
-        last = buf[n-1];
+        last = buf[n - 1];
     }
     return last as u64;
 }

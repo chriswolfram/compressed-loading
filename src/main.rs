@@ -10,11 +10,112 @@ fn main() -> std::io::Result<()> {
 
     // Run some experiments
     let start = std::time::Instant::now();
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    let checksum = reader_checksum(std::io::Cursor::new(buf));
+    let duration = start.elapsed();
+    println!(
+        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    let checksum = iterator_checksum(buf.into_iter());
+    let duration = start.elapsed();
+    println!(
+        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    let mut file = std::fs::File::open(working_dir.join("constant"))?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    let start = std::time::Instant::now();
+    let checksum = iterator_checksum(buf.into_iter());
+    let duration = start.elapsed();
+    println!(
+        "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    let start = std::time::Instant::now();
     let file = std::fs::File::open(working_dir.join("constant"))?;
     let file_bufread = BufReader::new(file);
     let checksum = reader_checksum(file_bufread);
+    let duration = start.elapsed();
     println!(
         "Constant uncompressed:\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
+    let compressed_file_bufread = BufReader::new(compressed_file);
+    let mut decoder = zstd::Decoder::new(compressed_file_bufread)?;
+    let mut buf = Vec::new();
+    decoder.read_to_end(&mut buf)?;
+    let checksum = iterator_checksum(buf.into_iter());
+    let duration = start.elapsed();
+    println!(
+        "Constant compressed buffer (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
+    let compressed_file_bufread = BufReader::with_capacity(1_000_000_000, compressed_file);
+    let decoder = zstd::Decoder::new(compressed_file_bufread)?;
+    let checksum = reader_checksum(decoder);
+    let duration = start.elapsed();
+    println!(
+        "Constant compressed bufreader (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
+    let compressed_file_bufread = BufReader::new(compressed_file);
+    let decoder = zstd::Decoder::new(compressed_file_bufread)?;
+    let checksum = reader_checksum(decoder);
+    let duration = start.elapsed();
+    println!(
+        "Constant compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
+        duration,
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
+    let mut decoder = xz2::read::XzDecoder::new(compressed_file);
+    let mut buf = Vec::new();
+    decoder.read_to_end(&mut buf)?;
+    let checksum = iterator_checksum(buf.into_iter());
+    println!(
+        "Constant compressed buffer (xz):\tElapsed: {:?}\tChecksum: {:?}",
+        start.elapsed(),
+        checksum
+    );
+
+    let start = std::time::Instant::now();
+    let mut compressed_file = std::fs::File::open(working_dir.join("constant.xz"))?;
+    let mut compressed_buf = Vec::new();
+    compressed_file.read_to_end(&mut compressed_buf)?;
+    let mut decoder = xz2::read::XzDecoder::new(std::io::Cursor::new(compressed_buf));
+    let mut buf = Vec::new();
+    decoder.read_to_end(&mut buf)?;
+    let checksum = iterator_checksum(buf.into_iter());
+    println!(
+        "Constant compressed buffer 2 (xz):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
     );
@@ -35,17 +136,6 @@ fn main() -> std::io::Result<()> {
     let checksum = reader_checksum(decoder);
     println!(
         "Constant compressed (xz high):\tElapsed: {:?}\tChecksum: {:?}",
-        start.elapsed(),
-        checksum
-    );
-
-    let start = std::time::Instant::now();
-    let compressed_file = std::fs::File::open(working_dir.join("constant.zst"))?;
-    let compressed_file_bufread = BufReader::new(compressed_file);
-    let decoder = zstd::Decoder::new(compressed_file_bufread)?;
-    let checksum = reader_checksum(decoder);
-    println!(
-        "Constant compressed (zstd):\tElapsed: {:?}\tChecksum: {:?}",
         start.elapsed(),
         checksum
     );
@@ -257,12 +347,30 @@ fn xz_compress_file_if_needed(
 // Experiment utilities
 
 /// Generate a super cheap hash of a reader.
-fn reader_checksum<R: Read>(reader: R) -> u64 {
-    let mut out: u64 = 0;
-    for b in reader.bytes() {
-        let v = b.unwrap() as u64;
-        out = (out + v) % 10000000000;
-    }
+// fn reader_checksum<R: Read>(reader: R) -> u64 {
+//     let mut out: u64 = 0;
+//     for b in reader.bytes() {
+//         let v = b.unwrap() as u64;
+//         out = (out + v) % 10000000000;
+//     }
 
-    return out;
+//     return out;
+// }
+
+// fn iterator_checksum<I: Iterator<Item = u8>>(iter : I) -> u64 {
+//     let mut out: u64 = 0;
+//     for b in iter {
+//         let v = b as u64;
+//         out = (out + v) % 10000000000;
+//     }
+
+//     return out;
+// }
+
+fn reader_checksum<R: Read>(reader: R) -> u64 {
+    return reader.bytes().last().unwrap().unwrap() as u64;
+}
+
+fn iterator_checksum<I: Iterator<Item = u8>>(iter : I) -> u64 {
+    return iter.last().unwrap() as u64;
 }

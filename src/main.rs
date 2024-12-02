@@ -5,6 +5,7 @@ macro_rules! log_result {
         println!(concat!("{}:{}: ", $fmt), file!(), line!(), $($result,)*);
     };
 }
+const SMALL_FILE_SIZE: u64 = 1 << 33;
 
 fn main() -> std::io::Result<()> {
     // Constants (should eventually be commandline arguments or something)
@@ -284,7 +285,7 @@ fn setup_files_constant(
         let bytes = "A".as_bytes();
         let destination_file = std::fs::File::create(&working_dir.join("constant"))?;
         let mut destination_file = BufWriter::new(destination_file);
-        for _ in 1..(1 << 30) {
+        for _ in 1..(SMALL_FILE_SIZE) {
             destination_file.write_all(bytes)?;
         }
         destination_file.flush()?;
@@ -340,7 +341,10 @@ fn setup_files_wikipedia(
     if !working_dir.join("wikipedia_small").try_exists()? {
         let source_file = std::fs::File::open(&working_dir.join("wikipedia"))?;
         let mut destination_file = std::fs::File::create(&working_dir.join("wikipedia_small"))?;
-        std::io::copy(&mut source_file.take(1 << 30), &mut destination_file)?;
+        std::io::copy(
+            &mut source_file.take(SMALL_FILE_SIZE),
+            &mut destination_file,
+        )?;
         destination_file.flush()?;
     }
 

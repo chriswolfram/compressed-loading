@@ -4,3 +4,6 @@
 head -c 1073741824 /dev/urandom > random.dat
 ```
 `wikipedia.bz2` is downloaded from `enwiki-20241101-pages-meta-history1.xml-p1p812.bz2` on [Wikipedia dumps](https://dumps.wikimedia.org/enwiki/20241101/).
+```bash
+wget "https://dumps.wikimedia.org/enwiki/20241101/enwiki-20241101-pages-meta-history1.xml-p1p812.bz2" -O wikipedia.bz2
+```

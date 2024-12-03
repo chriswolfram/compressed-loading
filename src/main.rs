@@ -21,14 +21,20 @@ fn main() -> std::io::Result<()> {
 
     experiment_test_case(
         working_dir,
-        "logs",
+        "access_logs",
         &[("none", 0), ("zstd", -7), ("zstd", 0), ("zstd", 22)],
     )?;
 
-    for size_index in 0..20 {
+    experiment_test_case(
+        working_dir,
+        "tedi_logs",
+        &[("none", 0), ("zstd", -7), ("zstd", 0), ("zstd", 22)],
+    )?;
+
+    for size in random_range_sizes() {
         experiment_test_case(
             &working_dir.join("random_range"),
-            &random_range_size(size_index).to_string(),
+            &size.to_string(),
             &[("none", 0), ("zstd", 0)],
         )?;
     }
@@ -36,8 +42,8 @@ fn main() -> std::io::Result<()> {
     return Ok(());
 }
 
-fn random_range_size(size_index: usize) -> usize {
-    size_index + 1
+fn random_range_sizes() -> impl IntoIterator<Item = usize> {
+    (2..40).step_by(2).chain((40..80).step_by(5))
 }
 
 fn experiment(
@@ -158,8 +164,7 @@ fn setup_files_random_range(
     let mut random_bytes = Vec::new();
     random_input.read_to_end(&mut random_bytes)?;
 
-    for size_index in 0..20 {
-        let block_size = random_range_size(size_index);
+    for block_size in random_range_sizes() {
         let path = out_dir.join(format!("{}.none.0", block_size));
         if path.exists() {
             continue;
@@ -213,14 +218,26 @@ fn setup_files_logs(
     input_dir: &std::path::Path,
     working_dir: &std::path::Path,
 ) -> std::io::Result<()> {
-    if !working_dir.join("logs.none.0").try_exists()? {
+    if !working_dir.join("access_logs.none.0").try_exists()? {
         let mut source_file = std::fs::File::open(&input_dir.join("access.log"))?;
-        let mut destination_file = std::fs::File::create(&working_dir.join("logs.none.0"))?;
+        let mut destination_file = std::fs::File::create(&working_dir.join("access_logs.none.0"))?;
+        std::io::copy(&mut source_file, &mut destination_file)?;
+        destination_file.flush()?;
+    }
+    if !working_dir.join("tedi_logs.none.0").try_exists()? {
+        let mut source_file = std::fs::File::open(&input_dir.join("tedi.log"))?;
+        let mut destination_file = std::fs::File::create(&working_dir.join("tedi_logs.none.0"))?;
         std::io::copy(&mut source_file, &mut destination_file)?;
         destination_file.flush()?;
     }
 
-    zstd_compress_file_if_needed(working_dir, "logs", 0)?;
+    zstd_compress_file_if_needed(working_dir, "access_logs", 0)?;
+    zstd_compress_file_if_needed(working_dir, "access_logs", 22)?;
+    zstd_compress_file_if_needed(working_dir, "access_logs", -7)?;
+
+    zstd_compress_file_if_needed(working_dir, "tedi_logs", 0)?;
+    zstd_compress_file_if_needed(working_dir, "tedi_logs", 22)?;
+    zstd_compress_file_if_needed(working_dir, "tedi_logs", -7)?;
 
     return Ok(());
 }

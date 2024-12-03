@@ -95,6 +95,7 @@ fn main() -> std::io::Result<()> {
 fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
     setup_files_constant(input_dir, working_dir)?;
     setup_files_wikipedia(input_dir, working_dir)?;
+    setup_files_logs(input_dir, working_dir)?;
     setup_files_random_range(input_dir, working_dir, 1_000_000_000)?;
 
     return Ok(());
@@ -197,6 +198,24 @@ fn setup_files_wikipedia(
 
     xz_compress_file_if_needed(working_dir, "wikipedia_small", 6)?;
     xz_compress_file_if_needed(working_dir, "wikipedia_small", 0)?;
+
+    return Ok(());
+}
+
+fn setup_files_logs(
+    input_dir: &std::path::Path,
+    working_dir: &std::path::Path,
+) -> std::io::Result<()> {
+    if !working_dir.join("logs.none.0").try_exists()? {
+        let mut source_file = std::fs::File::open(&input_dir.join("access.log"))?;
+        let mut destination_file = std::fs::File::create(&working_dir.join("logs.none.0"))?;
+        std::io::copy(&mut source_file, &mut destination_file)?;
+        destination_file.flush()?;
+    }
+
+    zstd_compress_file_if_needed(working_dir, "logs", 0)?;
+
+    xz_compress_file_if_needed(working_dir, "logs", 6)?;
 
     return Ok(());
 }

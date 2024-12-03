@@ -8,6 +8,8 @@ head -c 1073741824 /dev/urandom > random.dat
 wget "https://dumps.wikimedia.org/enwiki/20241101/enwiki-20241101-pages-meta-history1.xml-p1p812.bz2" -O wikipedia.bz2
 ```
 
+`access.log` is downloaded from [Kaggle](https://www.kaggle.com/datasets/eliasdabbas/web-server-access-logs?resource=download).
+
 - XZ is really slow
 - `.bytes()` can sometimes be really slow if you're not careful
 - ZSTD needs no input or output buffering on stream decoders

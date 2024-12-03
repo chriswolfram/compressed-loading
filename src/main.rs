@@ -81,6 +81,8 @@ fn main() -> std::io::Result<()> {
         &[("none", 0), ("zstd", 0), ("xz", 0)],
     )?;
 
+    experiment_test_case(working_dir, "logs", &[("none", 0), ("zstd", 0)])?;
+
     for size_index in 0..20 {
         experiment_test_case(
             &working_dir.join("random_range"),

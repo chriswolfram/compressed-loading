@@ -5,6 +5,10 @@ use std::{
 
 const SMALL_FILE_SIZE: usize = 1 << 33;
 
+fn random_range_size(size_index: usize) -> usize {
+    size_index + 1
+}
+
 fn experiment(
     name: &str,
     working_dir: &std::path::Path,
@@ -69,22 +73,18 @@ fn main() -> std::io::Result<()> {
 
     println!("name, test_case, algorithm,level, duration, checksum");
 
-    experiment_test_case(
-        working_dir,
-        "constant",
-        &[("none", 0), ("zstd", 0), ("xz", 6)],
-    )?;
+    experiment_test_case(working_dir, "constant", &[("none", 0), ("zstd", 0)])?;
 
     experiment_test_case(
         working_dir,
         "wikipedia_small",
-        &[("none", 0), ("zstd", 0), ("xz", 6)],
+        &[("none", 0), ("zstd", 0), ("xz", 0)],
     )?;
 
-    for size in (1..255).step_by(10) {
+    for size_index in 0..20 {
         experiment_test_case(
             &working_dir.join("random_range"),
-            &size.to_string(),
+            &random_range_size(size_index).to_string(),
             &[("none", 0), ("zstd", 0)],
         )?;
     }
@@ -95,7 +95,7 @@ fn main() -> std::io::Result<()> {
 fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
     setup_files_constant(input_dir, working_dir)?;
     setup_files_wikipedia(input_dir, working_dir)?;
-    setup_files_random_range(input_dir, working_dir)?;
+    setup_files_random_range(input_dir, working_dir, 1_000_000_000)?;
 
     return Ok(());
 }
@@ -124,6 +124,7 @@ fn setup_files_constant(
 fn setup_files_random_range(
     input_dir: &std::path::Path,
     working_dir: &std::path::Path,
+    size: usize,
 ) -> std::io::Result<()> {
     let out_dir = &working_dir.join("random_range");
     if !out_dir.is_dir() {
@@ -144,17 +145,21 @@ fn setup_files_random_range(
     let mut random_bytes = Vec::new();
     random_input.read_to_end(&mut random_bytes)?;
 
-    for size in (1..255).step_by(10) {
-        let path = out_dir.join(format!("{}.none.0", size.to_string()));
+    for size_index in 0..20 {
+        let block_size = random_range_size(size_index);
+        let path = out_dir.join(format!("{}.none.0", block_size));
         if path.exists() {
             continue;
         }
 
         let mut out_file = std::fs::File::create(&path)?;
-        let out_data = random_bytes.iter().map(|x| x % size).collect::<Vec<_>>();
+        let mut out_data: Vec<u8> = std::iter::repeat(b'a').take(size).collect();
+        for i in 0..(size / block_size) {
+            out_data[i * block_size] = random_bytes[i];
+        }
         out_file.write_all(&out_data)?;
 
-        zstd_compress_file_if_needed(&out_dir, &size.to_string(), 0)?;
+        zstd_compress_file_if_needed(&out_dir, &block_size.to_string(), 0)?;
     }
 
     return Ok(());
@@ -191,6 +196,7 @@ fn setup_files_wikipedia(
     xz_compress_file_if_needed(working_dir, "wikipedia", 6)?;
 
     xz_compress_file_if_needed(working_dir, "wikipedia_small", 6)?;
+    xz_compress_file_if_needed(working_dir, "wikipedia_small", 0)?;
 
     return Ok(());
 }

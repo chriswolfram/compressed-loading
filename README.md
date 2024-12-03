@@ -10,7 +10,7 @@ wget "https://dumps.wikimedia.org/enwiki/20241101/enwiki-20241101-pages-meta-his
 
 `access.log` is downloaded from [Kaggle](https://www.kaggle.com/datasets/eliasdabbas/web-server-access-logs?resource=download).
 
-- XZ is really slow
+- XZ is really slow, even at minimal level
 - `.bytes()` can sometimes be really slow if you're not careful
 - ZSTD needs no input or output buffering on stream decoders
 - We tried measuring the elapsed time from before opening the file, and from the beginning of reading data. However, the overhead of opening the file and initializing decompression was negligible.

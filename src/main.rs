@@ -16,6 +16,19 @@ fn experiment(
     algorithm: &str,
     level: i32,
 ) -> std::io::Result<()> {
+
+    // Compute the compression ratio
+    let file_name = format!("{}.{}.{}", test_case, algorithm, level);
+    let file = std::fs::File::open(working_dir.join(file_name))?;
+    let compressed_size = file.metadata()?.len();
+
+    let file_name = format!("{}.{}.{}", test_case, "none", 0);
+    let file = std::fs::File::open(working_dir.join(file_name))?;
+    let uncompressed_size = file.metadata()?.len();
+
+    let compression_ratio = (compressed_size as f64) / (uncompressed_size as f64);
+
+    // Run timed experiment
     purge_filesystem_caches();
     let start = std::time::Instant::now();
     let file_name = format!("{}.{}.{}", test_case, algorithm, level);
@@ -28,12 +41,13 @@ fn experiment(
     };
     let duration = start.elapsed();
     println!(
-        "{}, {}, {}, {}, {}, {}",
+        "{}, {}, {}, {}, {}, {:?}, {}",
         name,
         test_case,
         algorithm,
         level,
         duration.as_secs_f64(),
+        compression_ratio,
         checksum
     );
     return Ok(());
@@ -71,7 +85,7 @@ fn main() -> std::io::Result<()> {
     // Populate the working directory as needed
     setup_files(input_dir, working_dir)?;
 
-    println!("name, test_case, algorithm,level, duration, checksum");
+    println!("name, test_case, algorithm, level, duration, compression_ratio, checksum");
 
     experiment_test_case(working_dir, "constant", &[("none", 0), ("zstd", 0)])?;
 

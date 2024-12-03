@@ -5,6 +5,37 @@ use std::{
 
 const SMALL_FILE_SIZE: usize = 1 << 33;
 
+fn main() -> std::io::Result<()> {
+    // Constants (should eventually be commandline arguments or something)
+    let input_dir = std::path::Path::new("input_files/");
+    let working_dir = std::path::Path::new("working_files/");
+
+    // Populate the working directory as needed
+    setup_files(input_dir, working_dir)?;
+
+    println!("name, test_case, algorithm, level, duration, compression_ratio, checksum");
+
+    experiment_test_case(working_dir, "constant", &[("none", 0), ("zstd", 0)])?;
+
+    experiment_test_case(working_dir, "wikipedia_small", &[("none", 0), ("zstd", 0)])?;
+
+    experiment_test_case(
+        working_dir,
+        "logs",
+        &[("none", 0), ("zstd", -7), ("zstd", 0), ("zstd", 22)],
+    )?;
+
+    for size_index in 0..20 {
+        experiment_test_case(
+            &working_dir.join("random_range"),
+            &random_range_size(size_index).to_string(),
+            &[("none", 0), ("zstd", 0)],
+        )?;
+    }
+
+    return Ok(());
+}
+
 fn random_range_size(size_index: usize) -> usize {
     size_index + 1
 }
@@ -16,7 +47,6 @@ fn experiment(
     algorithm: &str,
     level: i32,
 ) -> std::io::Result<()> {
-
     // Compute the compression ratio
     let file_name = format!("{}.{}.{}", test_case, algorithm, level);
     let file = std::fs::File::open(working_dir.join(file_name))?;
@@ -36,7 +66,6 @@ fn experiment(
     let checksum = match algorithm {
         "none" => reader_checksum(BufReader::new(file)),
         "zstd" => reader_checksum(zstd::Decoder::new(file)?),
-        "xz" => reader_checksum(xz2::read::XzDecoder::new(file)),
         _ => panic!("Unknown algorithm: {}", algorithm),
     };
     let duration = start.elapsed();
@@ -77,37 +106,6 @@ fn experiment_test_case(
     return Ok(());
 }
 
-fn main() -> std::io::Result<()> {
-    // Constants (should eventually be commandline arguments or something)
-    let input_dir = std::path::Path::new("input_files/");
-    let working_dir = std::path::Path::new("working_files/");
-
-    // Populate the working directory as needed
-    setup_files(input_dir, working_dir)?;
-
-    println!("name, test_case, algorithm, level, duration, compression_ratio, checksum");
-
-    experiment_test_case(working_dir, "constant", &[("none", 0), ("zstd", 0)])?;
-
-    experiment_test_case(
-        working_dir,
-        "wikipedia_small",
-        &[("none", 0), ("zstd", 0), ("xz", 0)],
-    )?;
-
-    experiment_test_case(working_dir, "logs", &[("none", 0), ("zstd", 0)])?;
-
-    for size_index in 0..20 {
-        experiment_test_case(
-            &working_dir.join("random_range"),
-            &random_range_size(size_index).to_string(),
-            &[("none", 0), ("zstd", 0)],
-        )?;
-    }
-
-    return Ok(());
-}
-
 fn setup_files(input_dir: &std::path::Path, working_dir: &std::path::Path) -> std::io::Result<()> {
     setup_files_constant(input_dir, working_dir)?;
     setup_files_wikipedia(input_dir, working_dir)?;
@@ -132,8 +130,6 @@ fn setup_files_constant(
     }
 
     zstd_compress_file_if_needed(working_dir, "constant", 0)?;
-
-    xz_compress_file_if_needed(working_dir, "constant", 6)?;
 
     return Ok(());
 }
@@ -210,11 +206,6 @@ fn setup_files_wikipedia(
 
     zstd_compress_file_if_needed(working_dir, "wikipedia_small", 0)?;
 
-    xz_compress_file_if_needed(working_dir, "wikipedia", 6)?;
-
-    xz_compress_file_if_needed(working_dir, "wikipedia_small", 6)?;
-    xz_compress_file_if_needed(working_dir, "wikipedia_small", 0)?;
-
     return Ok(());
 }
 
@@ -230,8 +221,6 @@ fn setup_files_logs(
     }
 
     zstd_compress_file_if_needed(working_dir, "logs", 0)?;
-
-    xz_compress_file_if_needed(working_dir, "logs", 6)?;
 
     return Ok(());
 }
@@ -262,29 +251,6 @@ fn zstd_compress_file_if_needed(
 }
 
 /// Convenience function for compressing files with xz.
-fn xz_compress_file_if_needed(
-    working_dir: &std::path::Path,
-    test_case: &str,
-    level: u32,
-) -> std::io::Result<()> {
-    let dest_file = format!("{}.xz.{}", test_case, level);
-    let destination_path = working_dir.join(dest_file);
-    let source_path = working_dir.join(format!("{}.none.0", test_case));
-    if destination_path.try_exists()? {
-        eprintln!("File already exists:\t{:?}", destination_path);
-        return Ok(());
-    }
-
-    eprintln!("Compressing file with XZ to:\t{:?}", destination_path);
-    let source_file = std::fs::File::open(source_path)?;
-    let source_bufread = BufReader::new(source_file);
-    let mut destination_file: std::fs::File = std::fs::File::create(destination_path)?;
-    let mut encoder = xz2::bufread::XzEncoder::new(source_bufread, level);
-    std::io::copy(&mut encoder, &mut destination_file)?;
-    destination_file.flush()?;
-
-    return Ok(());
-}
 
 // Experiment utilities
 
